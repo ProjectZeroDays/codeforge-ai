@@ -1,0 +1,78 @@
+# FastAPI and Server
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic>=2.10.0
+pydantic-settings==2.1.0
+python-multipart==0.0.6
+
+# Database
+psycopg2-binary==2.9.11
+asyncpg==0.31.0
+sqlalchemy>=2.0.30
+alembic==1.13.1
+
+# AI/ML
+httpx==0.26.0
+aiohttp==3.13.3
+
+# Local LLM Support (HuggingFace)
+torch>=2.1.0
+transformers>=4.36.0
+accelerate>=0.25.0
+bitsandbytes>=0.42.0
+huggingface-hub>=0.20.0
+safetensors>=0.4.0
+
+# GitHub Integration
+PyGithub==2.1.1
+gitpython==3.1.41
+
+# WebSocket
+websockets==12.0
+
+# Utilities
+python-dotenv==1.0.0
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+pytz==2023.3
+
+# Async
+aiofiles==23.2.1
+
+# Code Analysis
+tree-sitter==0.25.2
+pylint==3.0.3
+
+# Document Parsing (Chat Parser)
+python-docx>=1.1.0
+PyPDF2>=3.0.0
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+chardet>=5.2.0
+
+# YAML Processing (Workflows)
+PyYAML>=6.0.1
+
+# Monitoring
+prometheus-client==0.19.0
+
+# Additional utilities
+Jinja2>=3.1.0
+markdown>=3.5.0
+
+# Encryption (API Key Management)
+cryptography>=41.0.0
+
+# Archive/ZIP handling (Export/Import)
+aiofiles>=23.2.1
+
+# Async SQLite support (for testing)
+aiosqlite>=0.19.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.23.0
+
+# Code Quality Analysis
+radon>=6.0.0
+python-dotenv
