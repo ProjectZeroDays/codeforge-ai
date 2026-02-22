@@ -1,0 +1,51 @@
+# =============================================================================
+# CodeForge AI - Lightweight Gradio-only Dockerfile
+# =============================================================================
+# For HF Spaces free tier with minimal resource usage
+# Uses Gradio interface instead of full Next.js frontend
+# =============================================================================
+
+FROM python:3.11-slim
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=7860 \
+    HOST=0.0.0.0 \
+    GRADIO_SERVER_NAME=0.0.0.0 \
+    GRADIO_SERVER_PORT=7860
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+WORKDIR /app
+
+# Copy requirements
+COPY hf_requirements_gradio.txt ./requirements.txt
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY backend/ ./backend/
+COPY gradio_app.py ./app.py
+
+# Create data directory
+RUN mkdir -p /app/data && chmod 777 /app/data
+
+# Create non-root user
+RUN useradd -m -u 1000 user
+RUN chown -R user:user /app
+USER user
+
+EXPOSE 7860
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:7860/ || exit 1
+
+CMD ["python", "app.py"]
