@@ -1,0 +1,54 @@
+# =============================================================================
+# CodeForge AI - Backend Requirements
+# =============================================================================
+# Only packages imported by backend/main.py, extended_routes.py, and the
+# service modules under backend/app/services/.
+# =============================================================================
+
+# FastAPI and Server
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+python-multipart==0.0.6
+
+# Database
+asyncpg==0.29.0
+sqlalchemy==2.0.25
+aiosqlite>=0.19.0
+
+# AI/ML
+httpx==0.26.0
+
+# Local LLM Support (HuggingFace)
+torch>=2.1.0
+transformers>=4.36.0
+accelerate>=0.25.0
+bitsandbytes>=0.42.0
+huggingface-hub>=0.20.0
+safetensors>=0.4.0
+
+# GitHub Integration
+PyGithub==2.1.1
+
+# WebSocket (transitively required by FastAPI's WebSocket support)
+websockets==12.0
+
+# Utilities
+python-dotenv==1.0.0
+pytz==2023.3
+
+# Document Parsing (Chat Parser)
+python-docx>=1.1.0
+PyPDF2>=3.0.0
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+chardet>=5.2.0
+
+# YAML Processing (Workflows)
+PyYAML>=6.0.1
+
+# Encryption (API Key Management)
+cryptography>=41.0.0
+
+# Monitoring (used in template generation strings)
+prometheus-client==0.19.0

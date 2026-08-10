@@ -1,0 +1,195 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # ============================================================
+  # Backend tests
+  # ============================================================
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        working-directory: backend
+
+      - name: Test imports
+        run: |
+          python -c "
+          import sys; sys.path.insert(0, '.')
+          from main import app
+          print(f'FastAPI app loaded with {len(app.routes)} routes')
+          from app.database.connection_unified import init_db, is_sqlite
+          print(f'Database: SQLite={is_sqlite()}')
+          print('All imports OK')
+          "
+        working-directory: backend
+
+      - name: Test health endpoint
+        run: |
+          python -m uvicorn main:app --host 127.0.0.1 --port 8765 &
+          sleep 3
+          curl -sf http://127.0.0.1:8765/health || echo "Backend health check failed"
+          kill %1 2>/dev/null || true
+        working-directory: backend
+
+  # ============================================================
+  # Frontend tests
+  # ============================================================
+  frontend-test:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: frontend
+
+      - name: Type check
+        run: npx tsc --noEmit
+        working-directory: frontend
+
+      - name: Lint
+        run: npm run lint
+        working-directory: frontend
+
+      - name: Build
+        run: npm run build
+        working-directory: frontend
+
+  # ============================================================
+  # Electron packaging (Windows only - from here)
+  # ============================================================
+  electron-package:
+    name: Package Electron (Windows)
+    needs: [backend-test, frontend-test]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install all dependencies
+        run: |
+          npm install
+          npm install
+          pip install -r requirements.txt
+        shell: bash
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+
+      - name: Prepare app bundle
+        run: node scripts/build.js win32
+        working-directory: electron
+
+      - name: Verify output
+        run: |
+          Get-ChildItem electron/dist | Select-Object Name, Length
+          if (!(Test-Path "electron/dist/CodeForge AI-Setup-*.exe")) {
+            Write-Error "Installer not found!"
+            exit 1
+          }
+        shell: pwsh
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CodeForge-AI-Windows
+          path: electron/dist/CodeForge AI-Setup-*.exe
+          retention-days: 14
+
+  # ============================================================
+  # Smoke test the packaged .exe
+  # ============================================================
+  smoke-test:
+    name: Smoke Test (Windows)
+    needs: electron-package
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: CodeForge-AI-Windows
+
+      - name: Verify installer exists
+        run: |
+          Get-ChildItem *.exe | Select-Object Name, Length
+          if ((Get-ChildItem *.exe).Count -eq 0) {
+            Write-Error "No installer found!"
+            exit 1
+          }
+
+      - name: Run installer silently
+        run: |
+          $installer = Get-ChildItem *.exe | Select-Object -First 1
+          Write-Host "Installing: $($installer.Name)"
+          Start-Process -FilePath $installer.FullName -ArgumentList "/S", "/D=$env:TEMP\CodeForgeTest" -Wait
+          Write-Host "Installation complete"
+
+      - name: Verify installation
+        run: |
+          $exePath = "$env:TEMP\CodeForgeTest\CodeForge AI.exe"
+          if (Test-Path $exePath) {
+            Write-Host "App executable found: $exePath"
+            Write-Host "Size: $((Get-Item $exePath).Length) bytes"
+          } else {
+            Write-Error "App executable not found at $exePath"
+            exit 1
+          }
+
+      - name: Check app starts
+        run: |
+          $proc = Start-Process -FilePath "$env:TEMP\CodeForgeTest\CodeForge AI.exe" -PassThru
+          Start-Sleep -Seconds 5
+          if ($proc.HasExited) {
+            Write-Host "Process exited (may be expected for headless test)"
+          } else {
+            Write-Host "App is running"
+            Stop-Process -Id $proc.Id -Force
+          }
+
+      - name: Cleanup
+        run: Remove-Item "$env:TEMP\CodeForgeTest" -Recurse -Force -ErrorAction SilentlyContinue

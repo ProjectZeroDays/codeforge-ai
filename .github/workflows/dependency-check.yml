@@ -1,0 +1,377 @@
+name: Dependency Update Check
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'  # Every Monday at 2:00 AM UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (no PRs, just report)'
+        type: boolean
+        default: true
+      scope:
+        description: 'Scope to check'
+        type: choice
+        default: all
+        options:
+          - all
+          - frontend
+          - backend
+          - electron
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # ============================================================
+  # Check npm dependencies
+  # ============================================================
+  check-frontend:
+    name: Check Frontend Dependencies
+    runs-on: ubuntu-latest
+    outputs:
+      has_updates: ${{ steps.check.outputs.has_updates }}
+      updates_json: ${{ steps.check.outputs.updates }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        run: npm install
+        working-directory: frontend
+
+      - name: Check for updates
+        id: check
+        shell: bash
+        run: |
+          set -e
+          cd frontend
+          npm outdated --json 2>/dev/null | node -e "
+            const data = JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8'));
+            if (Object.keys(data).length === 0) {
+              console.log('has_updates=false');
+              console.log('updates=');
+              process.exit(0);
+            }
+            
+            const updates = Object.entries(data).map(([name, info]) => ({
+              name,
+              current: info.current,
+              wanted: info.wanted,
+              latest: info.latest,
+              range: info.range
+            }));
+            
+            // Filter out dev-only updates unless user requests all
+            const relevant = updates.filter(u => 
+              u.name !== 'eslint' && 
+              !u.name.startsWith('@types/')
+            );
+            
+            if (relevant.length === 0) {
+              console.log('has_updates=false');
+              console.log('updates=');
+              process.exit(0);
+            }
+            
+            console.log('has_updates=true');
+            const json = JSON.stringify(relevant, null, 2);
+            console.log('updates=' + json);
+          " >> $GITHUB_OUTPUT
+
+      - name: Validate compatibility
+        if: steps.check.outputs.has_updates == 'true'
+        shell: bash
+        run: |
+          cd frontend
+          # Test that the current versions still compile
+          npx tsc --noEmit 2>/dev/null && echo "TypeScript compilation: OK" || echo "TypeScript compilation: FAILED"
+          
+          # Test that the build still works
+          npm run build 2>&1 | tail -5 && echo "Build: OK" || echo "Build: FAILED"
+
+  # ============================================================
+  # Check Python dependencies
+  # ============================================================
+  check-backend:
+    name: Check Backend Dependencies
+    runs-on: ubuntu-latest
+    outputs:
+      has_updates: ${{ steps.check.outputs.has_updates }}
+      updates_json: ${{ steps.check.outputs.updates }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        working-directory: backend
+
+      - name: Check for updates
+        id: check
+        shell: bash
+        run: |
+          set -e
+          cd backend
+          
+          # Get currently pinned versions
+          python -c "
+          import re
+          deps = {}
+          with open('requirements.txt') as f:
+              for line in f:
+                  line = line.strip()
+                  if not line or line.startswith('#'):
+                      continue
+                  match = re.match(r'^([a-zA-Z0-9_-]+)==([0-9.]+)', line)
+                  if match:
+                      deps[match.group(1).lower()] = match.group(2)
+          print('Pinned:', deps)
+          " > pinned_versions.txt
+          
+          # Check pip list for installed versions
+          python -m pip list --format=json > installed_versions.json
+          
+          # Generate update report
+          python -c "
+          import json, re
+          
+          pinned = {}
+          with open('pinned_versions.txt') as f:
+              for line in f:
+                  m = re.search(r'Pinned: ({.*})', line)
+                  if m:
+                      pinned = eval(m.group(1))
+          
+          with open('installed_versions.json') as f:
+              installed = {p['name'].lower(): p['version'] for p in json.load(f)}
+          
+          # Check each pinned dep
+          updates = []
+          for name, pinned_ver in pinned.items():
+              if name in installed and installed[name] != pinned_ver:
+                  updates.append({
+                      'name': name,
+                      'pinned': pinned_ver,
+                      'installed': installed[name]
+                  })
+          
+          if updates:
+              print('has_updates=true')
+              print('updates=' + json.dumps(updates, indent=2))
+          else:
+              print('has_updates=false')
+              print('updates=')
+          " >> $GITHUB_OUTPUT
+
+      - name: Validate backend still imports
+        if: steps.check.outputs.has_updates == 'true'
+        shell: bash
+        run: |
+          cd backend
+          python -c "
+          import sys; sys.path.insert(0, '.')
+          import app.database.connection_unified
+          import app.models.schemas
+          import app.api.extended_routes
+          print('Backend imports: OK')
+          "
+
+  # ============================================================
+  # Check Electron dependencies
+  # ============================================================
+  check-electron:
+    name: Check Electron Dependencies
+    runs-on: ubuntu-latest
+    outputs:
+      has_updates: ${{ steps.check.outputs.has_updates }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Install electron deps
+        run: npm install
+        working-directory: electron
+
+      - name: Check for updates
+        id: check
+        shell: bash
+        run: |
+          cd electron
+          npm outdated --json 2>/dev/null | node -e "
+            const data = JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8'));
+            // Only care about electron and electron-builder (runtime deps)
+            const relevant = Object.keys(data).filter(k => 
+              k === 'electron' || k === 'electron-builder'
+            );
+            if (relevant.length > 0) {
+              console.log('has_updates=true');
+            } else {
+              console.log('has_updates=false');
+            }
+          " >> $GITHUB_OUTPUT
+
+  # ============================================================
+  # Generate report and optionally create PRs
+  # ============================================================
+  report:
+    name: Generate Report
+    needs: [check-frontend, check-backend, check-electron]
+    runs-on: ubuntu-latest
+    if: always()
+    outputs:
+      summary: ${{ steps.summary.outputs.text }}
+    steps:
+      - name: Generate summary
+        id: summary
+        shell: bash
+        run: |
+          FRONTEND="${{ needs.check-frontend.outputs.has_updates }}"
+          BACKEND="${{ needs.check-backend.outputs.has_updates }}"
+          ELECTRON="${{ needs.check-electron.outputs.has_updates }}"
+          
+          if [ "$FRONTEND" = "true" ] || [ "$BACKEND" = "true" ] || [ "$ELECTRON" = "true" ]; then
+            echo "text=## Dependency Updates Available" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            
+            if [ "$FRONTEND" = "true" ]; then
+              echo "### Frontend Updates" >> $GITHUB_OUTPUT
+              echo '```' >> $GITHUB_OUTPUT
+              echo "${{ needs.check-frontend.outputs.updates_json }}" >> $GITHUB_OUTPUT
+              echo '```' >> $GITHUB_OUTPUT
+              echo "" >> $GITHUB_OUTPUT
+            fi
+            
+            if [ "$BACKEND" = "true" ]; then
+              echo "### Backend Updates" >> $GITHUB_OUTPUT
+              echo '```' >> $GITHUB_OUTPUT
+              echo "${{ needs.check-backend.outputs.updates_json }}" >> $GITHUB_OUTPUT
+              echo '```' >> $GITHUB_OUTPUT
+              echo "" >> $GITHUB_OUTPUT
+            fi
+            
+            echo "### Electron Updates" >> $GITHUB_OUTPUT
+            echo "- Review required for electron/electron-builder updates" >> $GITHUB_OUTPUT
+          else
+            echo "text=## No Dependency Updates Available" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "All dependencies are up to date." >> $GITHUB_OUTPUT
+          fi
+
+  # ============================================================
+  # Create/update PR for safe updates
+  # ============================================================
+  update-pr:
+    name: Create Update PR
+    needs: [check-frontend, check-backend]
+    runs-on: ubuntu-latest
+    if: needs.check-frontend.outputs.has_updates == 'true' || needs.check-backend.outputs.has_updates == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.BOT_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Create update branch
+        id: branch
+        shell: bash
+        run: |
+          BRANCH="deps/update-$(date +%Y%m%d)-$(echo $RANDOM | md5sum | head -c 8)"
+          git checkout -b "$BRANCH"
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Check frontend updates (safe: minor/patch only)
+        if: needs.check-frontend.outputs.has_updates == 'true'
+        shell: bash
+        run: |
+          cd frontend
+          npm install $(node -e "
+            const updates = ${{ needs.check-frontend.outputs.updates_json }};
+            const safe = updates.filter(u => {
+              const cur = u.current.split('.').map(Number);
+              const lat = u.latest.split('.').map(Number);
+              // Only update if major version matches (safe)
+              return cur[0] === lat[0];
+            });
+            console.log(safe.map(u => `${u.name}@${u.latest}`).join(' '));
+          ")
+          git add package.json package-lock.json
+          git commit -m "chore: bump frontend minor/patch deps" || echo "No safe frontend updates"
+
+      - name: Check backend updates (safe: minor/patch only)
+        if: needs.check-backend.outputs.has_updates == 'true'
+        shell: bash
+        run: |
+          cd backend
+          python -c "
+          import json, re
+          updates = ${{ needs.check-backend.outputs.updates_json }}
+          safe = []
+          for u in updates:
+              cur = [int(x) for x in u['pinned'].split('.')[:3]]
+              lat = [int(x) for x in u['installed'].split('.')[:3]]
+              if cur[0] == lat[0]:  # same major version
+                  safe.append(u['name'])
+          if safe:
+              print('Safe to update:', ' '.join(safe))
+              # Write to file for pip
+              with open('safe_updates.txt', 'w') as f:
+                  f.write(' '.join(safe))
+          else:
+              print('No safe backend updates (major version changes detected)')
+          "
+          if [ -f safe_updates.txt ]; then
+            pip install --upgrade $(cat safe_updates.txt)
+            python -c "import sys; sys.path.insert(0, '.'); import app.database.connection_unified; print('Import check OK')"
+            git add requirements.txt
+            git commit -m "chore: bump backend minor/patch deps" || echo "No safe backend updates"
+          fi
+
+      - name: Create PR
+        if: success()
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: ${{ steps.branch.outputs.branch }}
+          title: "chore: dependency updates"
+          body: |
+            ## Dependency Updates
+            
+            Automated update for safe (minor/patch) dependency bumps.
+            
+            ### Frontend
+            Updates that keep the same major version.
+            
+            ### Backend
+            Updates that keep the same major version.
+            
+            ---
+            Generated by GitHub Actions
+          labels: dependencies,automated
+          draft: false

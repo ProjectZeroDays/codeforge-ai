@@ -1,0 +1,345 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+      prerelease:
+        description: 'Prerelease'
+        type: boolean
+        default: false
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
+  APP_NAME: 'CodeForge AI'
+  PRODUCT_NAME: 'CodeForgeAI'
+
+jobs:
+  # ============================================================
+  # Pre-release checks
+  # ============================================================
+  checks:
+    name: Pre-release checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install frontend dependencies
+        run: npm install
+        working-directory: frontend
+
+      - name: Install backend dependencies
+        run: pip install -r requirements.txt
+        working-directory: backend
+
+      - name: Frontend type check
+        run: npx tsc --noEmit
+        working-directory: frontend
+
+      - name: Frontend lint
+        run: npm run lint
+        working-directory: frontend
+
+      - name: Frontend build
+        run: npm run build
+        working-directory: frontend
+
+      - name: Backend import check
+        run: |
+          python -c "
+          import sys; sys.path.insert(0, '.')
+          import app.database.connection_unified
+          import app.models.schemas
+          import app.api.extended_routes
+          print('All backend imports OK')
+          "
+        working-directory: backend
+
+  # ============================================================
+  # Windows build
+  # ============================================================
+  build-windows:
+    name: Windows build
+    needs: checks
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      artifact_name: ${{ steps.set_output.outputs.artifact_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Get version
+        id: get_version
+        shell: bash
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Set artifact name
+        id: set_output
+        shell: powershell
+        run: |
+          $ver = "${{ steps.get_version.outputs.version }}"
+          $name = "windows-${ver}"
+          echo "artifact_name=$name" >> $env:GITHUB_OUTPUT
+
+      - name: Install dependencies
+        run: |
+          npm install
+          pip install -r requirements.txt
+        shell: bash
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+
+      - name: Prepare app bundle
+        run: node scripts/build.js win32
+        working-directory: electron
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.set_output.outputs.artifact_name }}
+          path: |
+            electron/dist/*-Setup-*.exe
+            electron/dist/*.exe
+          retention-days: 7
+
+  # ============================================================
+  # macOS build
+  # ============================================================
+  build-macos:
+    name: macOS build
+    needs: checks
+    runs-on: macos-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      artifact_name: ${{ steps.set_output.outputs.artifact_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Get version
+        id: get_version
+        shell: bash
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Set artifact name
+        id: set_output
+        shell: bash
+        run: echo "artifact_name=macos-${{ steps.get_version.outputs.version }}" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies
+        run: |
+          npm install
+          pip install -r requirements.txt
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+
+      - name: Prepare app bundle
+        run: node scripts/build.js darwin
+        working-directory: electron
+
+      - name: Upload macOS bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.set_output.outputs.artifact_name }}
+          path: |
+            electron/dist/*.dmg
+            electron/dist/*.zip
+          retention-days: 7
+
+  # ============================================================
+  # Linux build
+  # ============================================================
+  build-linux:
+    name: Linux build
+    needs: checks
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      artifact_name: ${{ steps.set_output.outputs.artifact_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libnotify-dev libnss3 libxss1 \
+            libxtst6 xdg-utils libasound2 libatk-bridge2.0-0 libegl1
+
+      - name: Get version
+        id: get_version
+        shell: bash
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Set artifact name
+        id: set_output
+        run: echo "artifact_name=linux-${{ steps.get_version.outputs.version }}" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies
+        run: |
+          npm install
+          pip install -r requirements.txt
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+
+      - name: Prepare app bundle
+        run: node scripts/build.js linux
+        working-directory: electron
+
+      - name: Upload Linux bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.set_output.outputs.artifact_name }}
+          path: |
+            electron/dist/*.AppImage
+            electron/dist/*.deb
+            electron/dist/*.rpm
+            electron/dist/*.tar.gz
+          retention-days: 7
+
+  # ============================================================
+  # Create GitHub Release with all assets
+  # ============================================================
+  release:
+    name: Create Release
+    needs: [build-windows, build-macos, build-linux, checks]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-${{ needs.build-windows.outputs.version }}
+          path: dist/windows
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-${{ needs.build-macos.outputs.version }}
+          path: dist/macos
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-${{ needs.build-linux.outputs.version }}
+          path: dist/linux
+
+      - name: Determine release info
+        id: release_info
+        shell: bash
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Check if this is a prerelease (contains prerelease keywords)
+          if [[ "$VERSION" == *alpha* ]] || [[ "$VERSION" == *beta* ]] || [[ "$VERSION" == *rc* ]] || [[ "${{ github.event.inputs.prerelease }}" == "true" ]]; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Generate changelog from recent commits
+          echo "## What's Changed" > release-notes.md
+          echo "" >> release-notes.md
+          git log --oneline --decorate --no-merges -15 >> release-notes.md 2>/dev/null || true
+          echo "" >> release-notes.md
+          echo "### Build Information" >> release-notes.md
+          echo "- **Version:** $VERSION" >> release-notes.md
+          echo "- **Commit:** ${{ github.sha }}" >> release-notes.md
+          echo "- **Date:** $(date -u +%Y-%m-%d)" >> release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.release_info.outputs.version }}
+          name: CodeForge AI v${{ steps.release_info.outputs.version }}
+          body_path: release-notes.md
+          prerelease: ${{ steps.release_info.outputs.prerelease }}
+          files: |
+            dist/windows/*.exe
+            dist/macos/*.dmg
+            dist/macos/*.zip
+            dist/linux/*.AppImage
+            dist/linux/*.deb
+            dist/linux/*.rpm
+            dist/linux/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

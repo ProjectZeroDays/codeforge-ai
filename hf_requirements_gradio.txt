@@ -1,0 +1,27 @@
+# =============================================================================
+# CodeForge AI - Gradio-only Requirements
+# =============================================================================
+# Minimal dependencies for Gradio interface on HF Spaces free tier
+# Only packages actually imported by gradio_app.py + connection_unified.py
+# =============================================================================
+
+# Gradio UI
+gradio==4.16.0
+
+# Database (SQLite only)
+aiosqlite==0.19.0
+sqlalchemy[asyncio]==2.0.25
+greenlet==3.0.3
+
+# AI Integration (Venice API via httpx)
+httpx==0.26.0
+
+# Document Parsing
+python-docx==1.1.0
+PyPDF2==3.0.1
+
+# YAML Processing
+PyYAML==6.0.1
+
+# Utilities
+pydantic==2.6.0

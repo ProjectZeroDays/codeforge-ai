@@ -1,0 +1,47 @@
+# Runtime / data artifacts
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.log
+
+# Build artifacts
+frontend/.next/
+frontend/tsconfig.tsbuildinfo
+frontend/out/
+backend/__pycache__/
+backend/*.pyc
+**/__pycache__/
+**/*.pyc
+electron/dist/
+electron/tmp_*
+electron/node_modules/
+frontend/node_modules/
+backend/venv/
+backend/.venv/
+
+# Environment
+.env
+.env.local
+.env.*.local
+.env.huggingface
+
+# External tool artifacts (do not delete; identify the tool before removing)
+.abacus.donotdelete
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Electron build cache
+electron/.cache/
+electron/app/
