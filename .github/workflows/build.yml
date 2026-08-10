@@ -30,21 +30,26 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install dependencies
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpq-dev 2>/dev/null || true
+
+      - name: Install backend dependencies
         run: pip install -r requirements.txt
+        timeout-minutes: 10
         working-directory: backend
 
       - name: Test imports
         run: |
           python -c "
-          import sys; sys.path.insert(0, '.')
+          import sys; sys.path.insert(0, 'backend')
           from main import app
           print(f'FastAPI app loaded with {len(app.routes)} routes')
           from app.database.connection_unified import init_db, is_sqlite
           print(f'Database: SQLite={is_sqlite()}')
           print('All imports OK')
           "
-        working-directory: backend
 
       - name: Test health endpoint
         run: |
