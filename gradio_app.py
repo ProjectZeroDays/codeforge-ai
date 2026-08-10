@@ -115,6 +115,11 @@ You can get a Venice AI API key at: https://venice.ai/"""
 
 def sync_chat_with_ai(message, history, system_prompt, api_key):
     """Synchronous wrapper for chat function."""
+    loop = asyncio.get_event_loop()
+    if loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            return pool.submit(loop.run_until_complete, chat_with_ai(message, history, system_prompt, api_key)).result()
     return asyncio.run(chat_with_ai(message, history, system_prompt, api_key))
 
 # ============================================================================
@@ -175,6 +180,11 @@ Output ONLY the code with comments, no explanations outside code blocks."""
 
 def sync_generate_code(prompt, language, api_key):
     """Synchronous wrapper for code generation."""
+    loop = asyncio.get_event_loop()
+    if loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            return pool.submit(loop.run_until_complete, generate_code(prompt, language, api_key)).result()
     return asyncio.run(generate_code(prompt, language, api_key))
 
 # ============================================================================
@@ -274,6 +284,11 @@ async def create_project(name: str, description: str) -> str:
 
 def sync_create_project(name, description):
     """Synchronous wrapper."""
+    loop = asyncio.get_event_loop()
+    if loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            return pool.submit(loop.run_until_complete, create_project(name, description)).result()
     return asyncio.run(create_project(name, description))
 
 async def list_projects() -> str:
@@ -303,6 +318,11 @@ async def list_projects() -> str:
 
 def sync_list_projects():
     """Synchronous wrapper."""
+    loop = asyncio.get_event_loop()
+    if loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            return pool.submit(loop.run_until_complete, list_projects()).result()
     return asyncio.run(list_projects())
 
 # ============================================================================
@@ -344,6 +364,11 @@ async def create_agent(
 
 def sync_create_agent(name, role, capabilities, system_prompt):
     """Synchronous wrapper."""
+    loop = asyncio.get_event_loop()
+    if loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            return pool.submit(loop.run_until_complete, create_agent(name, role, capabilities, system_prompt)).result()
     return asyncio.run(create_agent(name, role, capabilities, system_prompt))
 
 async def list_agents() -> str:
@@ -374,6 +399,11 @@ async def list_agents() -> str:
 
 def sync_list_agents():
     """Synchronous wrapper."""
+    loop = asyncio.get_event_loop()
+    if loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            return pool.submit(loop.run_until_complete, list_agents()).result()
     return asyncio.run(list_agents())
 
 # ============================================================================
@@ -756,7 +786,13 @@ def create_interface():
 if __name__ == "__main__":
     # Initialize database
     try:
-        asyncio.run(init_database())
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                pool.submit(loop.run_until_complete, init_database()).result()
+        else:
+            asyncio.run(init_database())
     except Exception as e:
         print(f"Warning: Could not initialize database: {e}")
     

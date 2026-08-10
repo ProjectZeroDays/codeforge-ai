@@ -144,7 +144,7 @@ class ProjectService:
             # Update existing
             existing_file.content = content
             existing_file.language = language or self._detect_language(path)
-            existing_file.updated_at = datetime.utcnow()
+            # Don't manually set updated_at - let SQLAlchemy handle it via onupdate
             file_obj = existing_file
         else:
             # Create new

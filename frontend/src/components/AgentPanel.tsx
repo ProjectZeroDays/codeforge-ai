@@ -122,11 +122,26 @@ export default function AgentPanel() {
               </div>
 
               <div className="flex items-center gap-2">
-                <button className="px-4 py-2 bg-dark-800 hover:bg-dark-700 rounded-lg flex items-center gap-2 transition-colors">
+                <button
+                  onClick={() => toast('Task assignment coming soon')}
+                  className="px-4 py-2 bg-dark-800 hover:bg-dark-700 rounded-lg flex items-center gap-2 transition-colors"
+                >
                   <Play className="w-4 h-4" />
                   Assign Task
                 </button>
-                <button className="p-2 text-red-400 hover:bg-dark-800 rounded-lg transition-colors">
+                <button
+                  onClick={async () => {
+                    if (!selectedAgent) return;
+                    try {
+                      await agentsAPI.terminate(selectedAgent.id);
+                      toast.success('Agent terminated');
+                      setSelectedAgent(null);
+                    } catch (e: any) {
+                      toast.error(e?.response?.data?.detail || 'Failed to terminate agent');
+                    }
+                  }}
+                  className="p-2 text-red-400 hover:bg-dark-800 rounded-lg transition-colors"
+                >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>

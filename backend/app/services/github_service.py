@@ -84,8 +84,10 @@ class GitHubService:
         self._check_available()
         try:
             repo = self.github.get_repo(repo_name)
-            
-            # Get the current commit SHA
+
+            # Verify the authenticated user has write access
+            if not repo.permissions.push:
+                raise ValueError(f"No write access to repository: {repo_name}")
             ref = await asyncio.to_thread(repo.get_git_ref, f"heads/{branch}")
             commit_sha = ref.object.sha
             commit = await asyncio.to_thread(repo.get_git_commit, commit_sha)

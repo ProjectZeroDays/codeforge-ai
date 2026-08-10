@@ -187,7 +187,11 @@ You should focus on your specific role and report back to your parent agent when
                     agent.task_queue.get(),
                     timeout=60.0  # Check status every minute
                 )
-                
+
+                # Re-check status after waiting for task
+                if agent.status != "active":
+                    break
+
                 agent.current_task = task
                 task['status'] = 'in_progress'
                 
@@ -248,11 +252,11 @@ You should focus on your specific role and report back to your parent agent when
                 role=task['type'],
                 capabilities=[task['type']],
                 reason=f"Specialized task: {task['type']}",
-                db=None
+                db=db
             )
-            
+
             # Delegate to child
-            return await self.assign_task(child['id'], task, db=None)
+            return await self.assign_task(child['id'], task, db=db)
         
         # Process with Venice AI
         full_response = ""

@@ -108,8 +108,8 @@ class SystemPrompt(Base):
 class GeneratedCode(Base):
     """Generated code log"""
     __tablename__ = "generated_code"
-    
-    id = Column(String, primary_key=True)
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     raw_response = Column(Text)
     code_blocks = Column(JSON)
     language = Column(String(50))

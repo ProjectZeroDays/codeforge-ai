@@ -86,6 +86,9 @@ export const useStore = create<StoreState>()(persist(
         activeView: state.activeView,
         messages: state.messages,
         activeProject: state.activeProject,
+        agents: state.agents,
+        projects: state.projects,
+        isConnected: state.isConnected,
       }),
     }
   )

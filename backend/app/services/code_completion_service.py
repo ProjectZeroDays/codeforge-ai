@@ -12,6 +12,7 @@ from typing import Optional, Dict, Any, List, AsyncGenerator
 from dataclasses import dataclass, field
 from datetime import datetime
 import json
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -249,9 +250,9 @@ Return only the function implementation code."""
             try:
                 if hasattr(self.ai_service, 'generate_code'):
                     result = await self.ai_service.generate_code(prompt, language)
-                    if result.get("success"):
+                    if result.get("code_blocks"):
                         suggestions.append(CompletionSuggestion(
-                            code=result.get("code", ""),
+                            code=result.get("raw_response", ""),
                             explanation=f"AI-generated implementation for {mf.name}",
                             confidence=0.8,
                             file_path=mf.file_path,
@@ -285,10 +286,10 @@ Format the response as JSON with keys: implementation, helpers, imports, tests""
         if self.ai_service:
             try:
                 result = await self.ai_service.generate_code(prompt, language)
-                if result.get("success"):
+                if result.get("code_blocks"):
                     return {
                         "success": True,
-                        "implementation": result.get("code", ""),
+                        "implementation": result.get("raw_response", ""),
                         "function_name": function_name,
                         "language": language
                     }
@@ -328,7 +329,7 @@ Format the response as JSON with keys: implementation, helpers, imports, tests""
         
         # Find next unanswered question
         answered_ids = {d.question for d in session.decisions}
-        
+
         for question in phase_questions:
             if question["id"] not in answered_ids:
                 # Handle dynamic options based on previous answers

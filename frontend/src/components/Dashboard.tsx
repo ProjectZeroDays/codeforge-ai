@@ -64,7 +64,7 @@ export default function Dashboard() {
     },
     {
       label: 'Code Generated',
-      value: '12.5k',
+      value: projectsData?.projects?.reduce((acc: number, p: any) => acc + (p.file_count || 0), 0) || 0,
       icon: Zap,
       color: 'from-yellow-500 to-yellow-600',
     },

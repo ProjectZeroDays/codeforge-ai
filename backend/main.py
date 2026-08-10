@@ -36,8 +36,6 @@ from app.models.schemas import (
 )
 from app.websocket.manager import WebSocketManager
 
-import os
-
 app = FastAPI(
     title="CodeForge AI",
     description="AI-Powered Development Platform with Multi-Agent Orchestration, Local LLM Support, and Code Intelligence",
@@ -540,7 +538,7 @@ async def unified_chat(request: UnifiedChatRequest, db=Depends(get_db)):
             result = await venice_service.generate_code(
                 prompt=request.messages[-1]['content'],
                 context=request.context,
-                language=None
+                language=request.language
             )
             return result
 

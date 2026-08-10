@@ -3,6 +3,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 const os = require('os');
 const fs = require('fs');
+const http = require('http');
 
 let mainWindow;
 let backendProcess;
@@ -60,8 +61,13 @@ async function waitForBackend() {
   const maxRetries = 25;
   for (let i = 0; i < maxRetries; i++) {
     try {
-      await fetch('http://localhost:8000/health', { 
-        signal: AbortSignal.timeout(500) 
+      await new Promise((resolve, reject) => {
+        const req = http.get('http://localhost:8000/health', { timeout: 500 }, (res) => {
+          if (res.statusCode === 200) resolve();
+          else reject(new Error('Not ready'));
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
       });
       return true;
     } catch {
