@@ -146,7 +146,7 @@ export default function ChatInterface() {
                   <button
                     key={suggestion}
                     onClick={() => setInput(suggestion)}
-                    className="px-4 py-2 bg-dark-800 hover:bg-dark-700 rounded-lg text-sm transition-colors"
+                    className="px-6 py-3 bg-dark-800 hover:bg-dark-700 rounded-lg text-sm transition-colors"
                   >
                     {suggestion}
                   </button>

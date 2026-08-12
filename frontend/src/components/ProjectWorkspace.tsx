@@ -154,13 +154,13 @@ export default function ProjectWorkspace() {
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={handleSaveFile}
-                  disabled={saveFileMutation.isPending}
-                  className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 disabled:bg-dark-700 rounded-lg flex items-center gap-2 transition-colors"
-                >
-                  <Save className="w-4 h-4" />
-                  {saveFileMutation.isPending ? 'Saving...' : 'Save'}
-                </button>
+                   onClick={handleSaveFile}
+                   disabled={saveFileMutation.isPending}
+                   className="px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-dark-700 rounded-lg flex items-center gap-2 transition-colors"
+                 >
+                   <Save className="w-4 h-4" />
+                   {saveFileMutation.isPending ? 'Saving...' : 'Save'}
+                 </button>
                 <button className="p-1.5 text-gray-400 hover:text-white transition-colors">
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -301,14 +301,14 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors"
+              className="px-6 py-3 bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={createMutation.isPending}
-              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-dark-700 rounded-lg transition-colors"
+              className="px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-dark-700 rounded-lg transition-colors"
             >
               {createMutation.isPending ? 'Creating...' : 'Create Project'}
             </button>

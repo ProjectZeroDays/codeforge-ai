@@ -243,10 +243,10 @@ export default function ChatParser() {
               {/* Actions */}
               <div className="flex gap-3 pt-2">
                 <button
-                  onClick={() => selectedFile && downloadMutation.mutate(selectedFile)}
-                  disabled={downloadMutation.isPending}
-                  className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition-colors"
-                >
+                   onClick={() => selectedFile && downloadMutation.mutate(selectedFile)}
+                   disabled={downloadMutation.isPending}
+                   className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg transition-colors"
+                 >
                   {downloadMutation.isPending ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
@@ -274,7 +274,7 @@ export default function ChatParser() {
                         }
                       }}
                       disabled={!projectName || createProjectMutation.isPending}
-                      className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                      className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 px-6 py-3 rounded-lg transition-colors disabled:opacity-50"
                     >
                       <FolderPlus className="w-4 h-4" />
                     </button>

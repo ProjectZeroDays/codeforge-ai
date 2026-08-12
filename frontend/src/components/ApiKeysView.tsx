@@ -81,7 +81,7 @@ export default function ApiKeysView() {
         </div>
         <button
           type="submit"
-          className="px-6 py-2 bg-primary-600 hover:bg-primary-500 rounded-lg text-sm font-medium transition-colors"
+          className="px-6 py-3 bg-primary-600 hover:bg-primary-500 rounded-lg text-sm font-medium transition-colors"
         >
           Add Key
         </button>

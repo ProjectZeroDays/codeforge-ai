@@ -161,12 +161,12 @@ export default function Dashboard() {
                 <FolderKanban className="w-12 h-12 mx-auto mb-2 opacity-50" />
                 <p>No projects yet</p>
                 <button
-                  onClick={() => setActiveView('projects')}
-                  className="mt-4 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg flex items-center gap-2 mx-auto"
-                >
-                  <Plus className="w-4 h-4" />
-                  Create Project
-                </button>
+                   onClick={() => setActiveView('projects')}
+                   className="mt-4 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg flex items-center gap-2 mx-auto"
+                 >
+                   <Plus className="w-4 h-4" />
+                   Create Project
+                 </button>
               </div>
             )}
           </motion.div>
@@ -222,12 +222,12 @@ export default function Dashboard() {
                 <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
                 <p>No agents running</p>
                 <button
-                  onClick={() => setActiveView('agents')}
-                  className="mt-4 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg flex items-center gap-2 mx-auto"
-                >
-                  <Plus className="w-4 h-4" />
-                  Create Agent
-                </button>
+                   onClick={() => setActiveView('agents')}
+                   className="mt-4 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg flex items-center gap-2 mx-auto"
+                 >
+                   <Plus className="w-4 h-4" />
+                   Create Agent
+                 </button>
               </div>
             )}
           </motion.div>
